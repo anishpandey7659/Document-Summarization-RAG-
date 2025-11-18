@@ -51,43 +51,44 @@
         )
         retriever = vectorstore.as_retriever(search_kwargs={"k": 5}, search_type="mmr")
 
-    def format_docs(retrieved_docs):
-        return "\n\n".join(doc.page_content for doc in retrieved_docs)
-
-    # 4. Define the RAG chain components
-    parallel_chain = RunnableParallel({
-        'context': retriever | RunnableLambda(format_docs),
-        'question': RunnablePassthrough()
-    })
-
-    parser = StrOutputParser()
+        def format_docs(retrieved_docs):
+            return "\n\n".join(doc.page_content for doc in retrieved_docs)
     
-    # Define the Prompt Template
-    prompt = PromptTemplate(
-        template="""
-        You are an expert summarizer.
-        Your job is to create a clear, detailed, and complete summary from the given context.
-        Do NOT add outside information.
-        Do NOT change facts
-        If the context is insufficient, just say I don't know.
-
-        Context:
-        {context}
-        Question: {question}
-        """,
-        input_variables=['context', 'question']
-    )
+        # 4. Define the RAG chain components
+        parallel_chain = RunnableParallel({
+            'context': retriever | RunnableLambda(format_docs),
+            'question': RunnablePassthrough()
+        })
     
-    rag_chain = parallel_chain | prompt | model | parser
+        parser = StrOutputParser()
+        
+        # Define the Prompt Template
+        prompt = PromptTemplate(
+            template="""
+            You are an expert summarizer.
+            Your job is to create a clear, detailed, and complete summary from the given context.
+            Do NOT add outside information.
+            Do NOT change facts
+            If the context is insufficient, just say I don't know.
     
-    result = rag_chain.invoke(user_question)
-    return result
+            Context:
+            {context}
+            Question: {question}
+            """,
+            input_variables=['context', 'question']
+        )
+        
+        rag_chain = parallel_chain | prompt | model | parser
+        
+        result = rag_chain.invoke(user_question)
+        return result
 
 
     if __name__ == '__main__':
     # This block allows you to test the logic independently
     # Example: print(setup_and_invoke_rag_chain("path/to/test.pdf", "What is the key finding?"))
     pass
+
 
 
 
