@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Summarizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area.drag-over {
+            border-color: #667eea;
+            background-color: #f0f4ff;
+            transform: scale(1.02);
+        }
+
+        .chat-message {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .typing-indicator span {
+            animation: blink 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes blink {
+            0%, 60%, 100% { opacity: 0.3; }
+            30% { opacity: 1; }
+        }
+
+        .document-viewer {
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+        }
+
+        .chat-container {
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Loading Animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loader {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+
+        .loader-circle {
+            width: 100%;
+            height: 100%;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            color: #667eea;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
+        }
+
+        .progress-bar-container {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px auto 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .loading-steps {
+            margin-top: 20px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loader">
+                <div class="loader-circle"></div>
+                <i class="fas fa-file-alt loader-icon"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-2">Processing Your Document</h3>
+            <p id="loadingStep" class="text-gray-300 mb-4">Uploading file...</p>
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="loading-steps">
+                <div id="stepIndicator">Step 1 of 4</div>
+            </div>
+        </div>
+    </div>
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-file-alt text-3xl"></i>
+                    <h1 class="text-2xl font-bold">AI Document Summarizer</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm opacity-90">Anish Pandey</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Upload Section -->
+        <div id="uploadSection" class="mb-8">
+            <div class="glass-effect rounded-2xl shadow-xl p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-cloud-upload-alt mr-3 text-purple-600"></i>
+                    Upload Your Document
+                </h2>
+                
+                <div id="uploadArea" class="upload-area rounded-xl p-12 text-center cursor-pointer">
+                    <i class="fas fa-file-upload text-6xl text-gray-400 mb-4"></i>
+                    <p class="text-xl font-semibold text-gray-700 mb-2">Drag & Drop your document here</p>
+                    <p class="text-gray-500 mb-4">or click to browse</p>
+                    <p class="text-sm text-gray-400">Supports: PDF, TXT, DOC, DOCX (Max 10MB)</p>
+                    <input type="file" id="fileInput" class="hidden" accept=".pdf,.txt,.doc,.docx">
+                    
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                    <div class="feature-card bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                        <div class="flex items-center space-x-3">
+                            <div class="bg-purple-100 rounded-lg p-3">
+                                <i class="fas fa-compress-alt text-purple-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Auto Summarize</h3>
+                                <p class="text-sm text-gray-500">Instant summaries</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="feature-card bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                        <div class="flex items-center space-x-3">
+                            <div class="bg-blue-100 rounded-lg p-3">
+                                <i class="fas fa-comments text-blue-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Ask Questions</h3>
+                                <p class="text-sm text-gray-500">Interactive Q&A</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="feature-card bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                        <div class="flex items-center space-x-3">
+                            <div class="bg-green-100 rounded-lg p-3">
+                                <i class="fas fa-key text-green-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Key Insights</h3>
+                                <p class="text-sm text-gray-500">Extract highlights</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Viewer & Chat Section -->
+        <div id="workspaceSection" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Document Viewer -->
+                <div class="glass-effect rounded-2xl shadow-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-file-alt mr-2 text-purple-600"></i>
+                            <span id="documentTitle">Document</span>
+                        </h2>
+                        <button id="closeDocument" class="text-gray-500 hover:text-red-500 transition">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-600"><i class="fas fa-file mr-2"></i><span id="fileName">-</span></span>
+                            <span class="text-gray-600"><i class="fas fa-weight mr-2"></i><span id="fileSize">-</span></span>
+                        </div>
+                    </div>
+
+                    <div id="documentContent" class="document-viewer bg-white rounded-lg p-6 border border-gray-200"  style="height:700px; padding:0">
+                         <iframe id="pdfViewer" src="" width=100% height=100% style="border:none;"></iframe>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex space-x-3 mt-4">
+                        <button id="summarizeBtn" class="btn-primary flex-1 text-white px-4 py-2 rounded-lg font-semibold">
+                            <i class="fas fa-magic mr-2"></i>Generate Summary
+                        </button>
+                        <button id="keyPointsBtn" class="bg-green-500 hover:bg-green-600 flex-1 text-white px-4 py-2 rounded-lg font-semibold transition">
+                            <i class="fas fa-lightbulb mr-2"></i>Key Points
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Interface -->
+                <div class="glass-effect rounded-2xl shadow-xl p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-comments mr-2 text-blue-600"></i>
+                        Ask Questions
+                    </h2>
+
+                    <div id="chatContainer" class="chat-container bg-gray-50 rounded-lg p-4 mb-4 space-y-4">
+                        <div class="text-center text-gray-400 py-8">
+                            <i class="fas fa-robot text-5xl mb-3"></i>
+                            <p>Start asking questions about your document!</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Questions -->
+                    <div id="quickQuestions" class="mb-4 flex flex-wrap gap-2">
+                        <button class="quick-question bg-white border border-gray-300 hover:border-purple-500 px-3 py-1 rounded-full text-sm transition">
+                            What is this document about?
+                        </button>
+                        <button class="quick-question bg-white border border-gray-300 hover:border-purple-500 px-3 py-1 rounded-full text-sm transition">
+                           Convert this document into bullet points.
+                        </button>
+                        <button class="quick-question bg-white border border-gray-300 hover:border-purple-500 px-3 py-1 rounded-full text-sm transition">
+                            Create a short summary
+                        </button>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="flex space-x-2">
+                        <input 
+                            type="text" 
+                            id="questionInput" 
+                            placeholder="Type your question here..." 
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                        <button id="sendQuestion" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedDocument = null;
+        let documentContent = '';
+        // Inside your <script> tag
+        const API_URL = 'http://127.0.0.1:8000/summarize_uploaded_document/'; // <--- ADD THIS
+        // ... rest of the constants
+        const uploadSection = document.getElementById('uploadSection');
+        const workspaceSection = document.getElementById('workspaceSection');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const chatContainer = document.getElementById('chatContainer');
+        const questionInput = document.getElementById('questionInput');
+        const sendQuestion = document.getElementById('sendQuestion');
+
+        // Upload Area Click
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and Drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        // File Input Change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        // Handle File Upload
+        function handleFileUpload(file) {
+            uploadedDocument = file;
+            
+            // Show loading overlay
+            showLoadingAnimation(file);
+        }
+
+        // Show Loading Animation
+        function showLoadingAnimation(file) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingStep = document.getElementById('loadingStep');
+            const stepIndicator = document.getElementById('stepIndicator');
+            const progressBar = document.getElementById('progressBar');
+            
+            loadingOverlay.classList.add('active');
+            
+            const steps = [
+                { text: 'Uploading file...', progress: 25 },
+                { text: 'Analyzing document structure...', progress: 50 },
+                { text: 'Extracting content...', progress: 75 },
+                { text: 'Preparing workspace...', progress: 100 }
+            ];
+            
+            let currentStep = 0;
+            
+            const stepInterval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    loadingStep.textContent = steps[currentStep].text;
+                    progressBar.style.width = steps[currentStep].progress + '%';
+                    stepIndicator.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+                    currentStep++;
+                } else {
+                    clearInterval(stepInterval);
+                    
+                    // Process the file
+                    setTimeout(() => {
+                        processDocument(file);
+                        loadingOverlay.classList.remove('active');
+                        
+                        // Reset for next time
+                        setTimeout(() => {
+                            progressBar.style.width = '0%';
+                            loadingStep.textContent = 'Uploading file...';
+                            stepIndicator.textContent = 'Step 1 of 4';
+                        }, 500);
+                    }, 500);
+                }
+            }, 800);
+        }
+
+        // Process Document
+        function processDocument(file) {
+            // Update file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('documentTitle').textContent = file.name;
+
+            // Read file content
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                documentContent = e.target.result;
+                displayDocument(documentContent, file.type);
+                
+                // Show workspace
+                uploadSection.classList.add('hidden');
+                workspaceSection.classList.remove('hidden');
+                
+                // Welcome message
+                addMessage('ai', `Great! I've loaded "${file.name}". How can I help you understand this document?`);
+            };
+            
+            if (file.type === 'text/plain') {
+                reader.readAsText(file);
+            } else {
+                reader.readAsText(file); // For demo purposes
+                documentContent = `This is a preview of ${file.name}. In a production environment, this would show the actual document content with proper parsing for PDF, DOC, and other formats.`;
+                displayDocument(documentContent, file.type);
+                
+                // Show workspace
+                uploadSection.classList.add('hidden');
+                workspaceSection.classList.remove('hidden');
+                
+                // Welcome message
+                addMessage('ai', `Great! I've loaded "${file.name}". How can I help you understand this document?`);
+            }
+        }
+
+        // Display Document
+        // function displayDocument(content, type) {
+        //     const docContent = document.getElementById('documentContent');
+        //     docContent.innerHTML = `<div class="prose max-w-none"><pre class="whitespace-pre-wrap text-gray-700">${escapeHtml(content)}</pre></div>`;
+        // }
+        function displayDocument(content, type) {
+            const pdfViewer = document.getElementById('pdfViewer');
+
+                if (type === 'application/pdf') {
+                    // Use Object URL to display PDF in iframe
+                    const fileURL = URL.createObjectURL(uploadedDocument);
+                    pdfViewer.src = fileURL;
+                } else {
+                // For text, show in HTML
+                    pdfViewer.srcdoc = `<pre style="white-space: pre-wrap; font-family: sans-serif; padding: 10px;">${escapeHtml(content)}</pre>`;
+            }
+        }
+
+
+        // Close Document
+        document.getElementById('closeDocument').addEventListener('click', () => {
+            workspaceSection.classList.add('hidden');
+            uploadSection.classList.remove('hidden');
+            uploadedDocument = null;
+            documentContent = '';
+            chatContainer.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-robot text-5xl mb-3"></i>
+                    <p>Start asking questions about your document!</p>
+                </div>
+            `;
+        });
+
+        // Summarize Button
+        // Summarize Button
+        document.getElementById('summarizeBtn').addEventListener('click', () => {
+            const summaryQuestion = 'Generate a clear, detailed, and complete summary of this document.';
+            addMessage('user', summaryQuestion);
+            callApiWithQuestion(summaryQuestion);
+        });
+
+        // Key Points Button
+        // Key Points Button
+        document.getElementById('keyPointsBtn').addEventListener('click', () => {
+            const keyPointsQuestion = 'What are the main 5 key points and conclusions of the document? List them.';
+            addMessage('user', keyPointsQuestion);
+            callApiWithQuestion(keyPointsQuestion);
+        });
+        // Send Question
+        // ... existing code in sendQuestionHandler()
+
+        function sendQuestionHandler() {
+            const question = questionInput.value.trim();
+            if (question) {
+                addMessage('user', question);
+                questionInput.value = '';
+                
+                // --- START: REAL API CALL ---
+                callApiWithQuestion(question);
+                // --- END: REAL API CALL ---
+            }
+        }
+
+// ... existing code
+
+        sendQuestion.addEventListener('click', sendQuestionHandler);
+        questionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendQuestionHandler();
+            }
+        });
+
+        // Quick Questions
+        document.querySelectorAll('.quick-question').forEach(btn => {
+            btn.addEventListener('click', () => {
+                questionInput.value = btn.textContent;
+                sendQuestionHandler();
+            });
+        });
+
+        // Add Message to Chat
+        function addMessage(sender, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                sender === 'user' 
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white' 
+                    : 'bg-white border border-gray-200 text-gray-800'
+            }`;
+            
+            if (sender === 'ai') {
+                bubble.innerHTML = `<div class="flex items-start space-x-2">
+                    <i class="fas fa-robot mt-1"></i>
+                    <div class="whitespace-pre-wrap">${formatMessage(text)}</div>
+                </div>`;
+            } else {
+                bubble.innerHTML = `<div class="whitespace-pre-wrap">${escapeHtml(text)}</div>`;
+            }
+            
+            messageDiv.appendChild(bubble);
+            
+            if (chatContainer.querySelector('.text-center')) {
+                chatContainer.innerHTML = '';
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Typing Indicator
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'typingIndicator';
+            indicator.className = 'chat-message flex justify-start';
+            indicator.innerHTML = `
+                <div class="bg-white border border-gray-200 px-4 py-3 rounded-2xl">
+                    <div class="typing-indicator flex space-x-1">
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(indicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) indicator.remove();
+        }
+
+        // Generate AI Response (Simulated)
+        function generateAIResponse(question) {
+            const lowerQuestion = question.toLowerCase();
+            
+            if (lowerQuestion.includes('about') || lowerQuestion.includes('summary')) {
+                return `Based on the document, this appears to be a comprehensive overview of the subject matter. The document contains valuable information that addresses various aspects of the topic. Would you like me to elaborate on any specific section?`;
+            } else if (lowerQuestion.includes('main point') || lowerQuestion.includes('key point')) {
+                return `The main points from the document include:\n\n• Critical analysis of the subject\n• Supporting evidence and examples\n• Recommendations and conclusions\n\nWould you like more details on any of these?`;
+            } else if (lowerQuestion.includes('date')) {
+                return `I can help you identify important dates in the document. In a production system, I would analyze the document for specific dates and timelines. Is there a particular time period you're interested in?`;
+            } else {
+                return `That's a great question! Based on the document content, I can provide insights on that topic. In a real implementation, I would analyze the specific sections relevant to your question and provide detailed answers. Is there anything else you'd like to know?`;
+            }
+        }
+
+        // Utility Functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatMessage(text) {
+            // Simple markdown-like formatting
+            text = escapeHtml(text);
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\n•/g, '\n<br>•');
+            text = text.replace(/\n\n/g, '<br><br>');
+            return text;
+        }
+        // Inside your <script> tag, add this new function:
+
+async function callApiWithQuestion(question) {
+    if (!uploadedDocument) {
+        addMessage('ai', "Please upload a document first!");
+        return;
+    }
+
+    showTypingIndicator(); // Show indicator while waiting for AI
+
+    try {
+        // 1. Create FormData object
+        const formData = new FormData();
+        // The key 'file' must match the parameter name in FastAPI: file: UploadFile = File(...)
+        formData.append('file', uploadedDocument); 
+        // The key 'question' must match the parameter name in FastAPI: question: Annotated[str, Form(...)]
+        formData.append('question', question);
+
+        // 2. Make the POST request
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            // No need to set Content-Type header when using FormData, 
+            // the browser handles it automatically (multipart/form-data)
+            body: formData, 
+        });
+
+        removeTypingIndicator();
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // 3. Display the AI's answer
+        addMessage('ai', data.answer);
+
+    } catch (error) {
+        removeTypingIndicator();
+        console.error('API Error:', error);
+        addMessage('ai', `❌ **Error:** Failed to get a response from the AI. The file might be too complex, or the server is unavailable. (${error.message})`);
+    }
+}
+    </script>
+</body>
+</html>
