@@ -4,33 +4,30 @@
 
 # rag_logic.py
 
-# 1. Imports needed for RAG logic
+    # 1. Imports needed for RAG logic
+    
+    from langchain_core.runnables import RunnableParallel, RunnablePassthrough, RunnableLambda
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    from langchain_community.document_loaders import PyPDFLoader
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from langchain_core.prompts import PromptTemplate
+    from langchain_chroma import Chroma
+    from langchain_groq import ChatGroq
+    import uuid
+    import os
 
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough, RunnableLambda
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.output_parsers import StrOutputParser
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.prompts import PromptTemplate
-from langchain_chroma import Chroma
-from langchain_groq import ChatGroq
-import uuid
-import os
-
-API_KEY = os.getenv("GROQ_API_KEY")
-
-# Initialize the LLM model (can be outside the function as it doesn't depend on the file)
-# NOTE: Ensure you set your groq_api_key securely here.
-model = ChatGroq(
+    API_KEY = os.getenv("GROQ_API_KEY")
+    # Initialize the LLM model (can be outside the function as it doesn't depend on the file)
+    model = ChatGroq(
     groq_api_key=API_KEY, # Replace with your actual API key
     model="llama-3.1-8b-instant"
-)
+    )
+    # Initialize the embeddings model (can be outside the function)
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-# Initialize the embeddings model (can be outside the function)
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-
-def setup_and_invoke_rag_chain(pdf_path: str, user_question: str):
+    #1
+    def setup_and_invoke_rag_chain(pdf_path: str, user_question: str):
     """
     Sets up the RAG chain for a specific document and invokes it with a question.
     (Your existing RAG logic, using the temporary pdf_path)
@@ -87,8 +84,9 @@ def setup_and_invoke_rag_chain(pdf_path: str, user_question: str):
     return result
 
 
-if __name__ == '__main__':
+    if __name__ == '__main__':
     # This block allows you to test the logic independently
     # Example: print(setup_and_invoke_rag_chain("path/to/test.pdf", "What is the key finding?"))
     pass
+
 
