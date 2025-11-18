@@ -1,6 +1,6 @@
 ﻿# Document-Summarization-RAG-
 
-# Also Due to technical issues i cant add rag_logic.py file so add by yourself
+# Also Due to technical issues i was unable to add rag_logic.py file so add by yourself
 
 # rag_logic.py
 
@@ -88,5 +88,6 @@
     # This block allows you to test the logic independently
     # Example: print(setup_and_invoke_rag_chain("path/to/test.pdf", "What is the key finding?"))
     pass
+
 
 
