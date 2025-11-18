@@ -28,28 +28,28 @@
 
     #1
     def setup_and_invoke_rag_chain(pdf_path: str, user_question: str):
-    """
-    Sets up the RAG chain for a specific document and invokes it with a question.
-    (Your existing RAG logic, using the temporary pdf_path)
-    """
-    # [RAG logic function content remains the same]
-    # 1. Load PDF from the temporary path
-    loader = PyPDFLoader(pdf_path)
-    document = loader.load()
+        """
+        Sets up the RAG chain for a specific document and invokes it with a question.
+        (Your existing RAG logic, using the temporary pdf_path)
+        """
+        # [RAG logic function content remains the same]
+        # 1. Load PDF from the temporary path
+        loader = PyPDFLoader(pdf_path)
+        document = loader.load()
 
-    # 2. Split the text
-    splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=0)
-    docs = splitter.split_documents(document)
+        # 2. Split the text
+        splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=0)
+        docs = splitter.split_documents(document)
 
-    # 🚨 FIX: Use a unique collection name every time 🚨
-    unique_collection_name = f"doc_collection_{uuid.uuid4()}"
-    # 3. Create Chroma vector store in memory
-    vectorstore = Chroma.from_documents(
+        # 🚨 FIX: Use a unique collection name every time 🚨
+        unique_collection_name = f"doc_collection_{uuid.uuid4()}"
+        # 3. Create Chroma vector store in memory
+        vectorstore = Chroma.from_documents(
         documents=docs,
         embedding=embeddings,
         collection_name=unique_collection_name  # Use the unique identifier
-    )
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 5}, search_type="mmr")
+        )
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 5}, search_type="mmr")
 
     def format_docs(retrieved_docs):
         return "\n\n".join(doc.page_content for doc in retrieved_docs)
@@ -88,6 +88,7 @@
     # This block allows you to test the logic independently
     # Example: print(setup_and_invoke_rag_chain("path/to/test.pdf", "What is the key finding?"))
     pass
+
 
 
 
